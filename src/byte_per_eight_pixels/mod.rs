@@ -6,7 +6,6 @@ pub struct BytePerEightPixels {
     width: usize,
     height: usize,
     eight_width: usize,
-    data: Vec<Mono>,
     eight_data: Vec<u8>,
 }
 
@@ -46,7 +45,6 @@ impl BytePerEightPixels {
         Self {
             width,
             height,
-            data: vec![Mono::Zero; width * height],
             eight_width,
             eight_data: vec![0; eight_width * height],
         }
@@ -62,29 +60,33 @@ impl BytePerEightPixels {
         }
 
         let mut o = Self::new(width, height);
-        o.set(0, 0, width, height, src);
+        o.update((0, 0, width, height), src);
         Ok(o)
     }
 
-    pub fn set(
+    pub fn update(
         &mut self,
-        start_x: usize,
-        start_y: usize,
-        w: usize,
-        h: usize,
+        rectangle: impl Into<Rectangle>,
         src: &[impl ActAsMono],
     ) -> BytePerEightPixelsResult<()> {
-        for y in 0..h {
-            for x in 0..w {
-                let color = src[w * y + x].act_as();
-                let real_x = start_x + x;
-                let real_y = start_y + y;
+        let Rectangle {
+            x,
+            y,
+            width,
+            height,
+        } = rectangle.into();
+        let data_width = self.eight_width;
 
-                let position = (self.eight_width * real_y + (real_x >> 3));
+        for step_y in 0..height {
+            for step_x in 0..width {
+                let color = src[width * step_y + step_x].act_as();
+                let data_x = x + step_x;
+                let data_y = y + step_y;
+                let data_i = data_width * data_y + (data_x >> 3);
 
                 match color {
                     Mono::One => {
-                        self.eight_data[position] |= match real_x % 8 {
+                        self.eight_data[data_i] |= match data_x % 8 {
                             0 => 0b_1000_0000,
                             1 => 0b_0100_0000,
                             2 => 0b_0010_0000,
@@ -97,7 +99,7 @@ impl BytePerEightPixels {
                         }
                     }
                     Mono::Zero => {
-                        self.eight_data[position] &= match real_x % 8 {
+                        self.eight_data[data_i] &= match data_x % 8 {
                             0 => 0b_0111_1111,
                             1 => 0b_1011_1111,
                             2 => 0b_1101_1111,
@@ -120,58 +122,93 @@ impl BytePerEightPixels {
         &self.eight_data
     }
 
-    pub fn as_part_vec(
-        &self,
-        x: usize,
-        real_byte_start_y: usize,
-        width: usize,
-        clipped_height: usize,
-    ) -> ((usize, usize, usize, usize), Vec<u8>) {
-        let real_byte_width = self.eight_width;
+    pub fn as_part_vec(&self, rectangle: impl Into<Rectangle>) -> (Rectangle, Vec<u8>) {
+        let Rectangle {
+            x,
+            y,
+            width,
+            height,
+        } = rectangle.into();
+        let src = &self.eight_data;
+        let src_width = self.eight_width;
 
-        let eight = Eight { x, width };
+        let AsEight {
+            x: src_x,
+            width: result_width,
+        } = into_as_eight(x, width);
 
-        let real_byte_start_x = eight.x_start();
-        let clipped_byte_width = eight.byte_width();
+        let mut result = vec![0u8; (result_width * height)];
 
-        let mut clipped = vec![0u8; (clipped_byte_width * clipped_height)];
+        for step_y in 0..height {
+            for step_x in 0..result_width {
+                let real_i = src_width * (y + step_y) + src_x + step_x;
+                let result_i = result_width * step_y + step_x;
 
-        for y in 0..clipped_height {
-            for x in 0..clipped_byte_width {
-                let real_position =
-                    real_byte_width * (real_byte_start_y + y) + real_byte_start_x + x;
-                let clipped_position = clipped_byte_width * y + x;
-
-                clipped[clipped_position] = self.eight_data[real_position];
+                result[result_i] = src[real_i];
             }
         }
 
-        let normalized = (
-            real_byte_start_x * 8,
-            real_byte_start_y,
-            clipped_byte_width * 8,
-            clipped_height,
-        );
-        (normalized, clipped)
+        (
+            Rectangle::new(src_x * 8, y, result_width * 8, height),
+            result,
+        )
     }
 }
 
-pub struct Eight {
+pub struct Rectangle {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl From<(usize, usize, usize, usize)> for Rectangle {
+    fn from((x, y, width, height): (usize, usize, usize, usize)) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+impl Into<(usize, usize, usize, usize)> for Rectangle {
+    fn into(self) -> (usize, usize, usize, usize) {
+        let Rectangle {
+            x,
+            y,
+            width,
+            height,
+        } = self;
+        (x, y, width, height)
+    }
+}
+
+impl Rectangle {
+    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+struct AsEight {
     pub x: usize,
     pub width: usize,
 }
 
-impl Eight {
-    pub fn x_start(&self) -> usize {
-        self.x >> 3
-    }
+fn into_as_eight(x: usize, width: usize) -> AsEight {
+    let x_start = x >> 3;
+    let x_end = (x + width - 1) >> 3;
+    let byte_width = x_end - x_start + 1;
 
-    fn x_end(&self) -> usize {
-        (self.x + self.width - 1) >> 3
-    }
-
-    pub fn byte_width(&self) -> usize {
-        self.x_end() - self.x_start() + 1
+    AsEight {
+        x: x_start,
+        width: byte_width,
     }
 }
 
@@ -283,11 +320,8 @@ mod test {
         let mut image = BytePerEightPixels::with_data(11, 3, &data).unwrap();
 
         image
-            .set(
-                6,
-                1,
-                3,
-                2,
+            .update(
+                (6, 1, 3, 2),
                 &vec![
                     Mono::Zero,
                     Mono::One,
@@ -309,7 +343,7 @@ mod test {
             image.as_vec()
         );
 
-        let (n, re) = image.as_part_vec(6, 1, 3, 2);
+        let (n, re) = image.as_part_vec((6, 1, 3, 2));
         assert_eq!(
             #[rustfmt::skip]
             vec![
@@ -319,24 +353,24 @@ mod test {
             re
         );
 
-        let (n, re) = image.as_part_vec(0, 0, 3, 1);
+        let (n, re) = image.as_part_vec((0, 0, 3, 1));
         assert_eq!(vec![0b_0000_0000,], re);
-        assert_eq!((0, 0, 8, 1), n);
+        assert_eq!((0, 0, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec(0, 1, 3, 1);
+        let (n, re) = image.as_part_vec((0, 1, 3, 1));
         assert_eq!(vec![0b_0000_0001,], re);
-        assert_eq!((0, 1, 8, 1), n);
+        assert_eq!((0, 1, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec(7, 2, 1, 1);
+        let (n, re) = image.as_part_vec((7, 2, 1, 1));
         assert_eq!(vec![0b_0000_0110,], re);
-        assert_eq!((0, 2, 8, 1), n);
+        assert_eq!((0, 2, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec(8, 2, 1, 1);
+        let (n, re) = image.as_part_vec((8, 2, 1, 1));
         assert_eq!(vec![0b_1000_0000,], re);
-        assert_eq!((8, 2, 8, 1), n);
+        assert_eq!((8, 2, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec(7, 2, 2, 1);
+        let (n, re) = image.as_part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
-        assert_eq!((0, 2, 16, 1), n);
+        assert_eq!((0, 2, 16, 1), n.into());
     }
 }
