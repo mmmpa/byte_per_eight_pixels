@@ -35,6 +35,58 @@ impl ActAsMono for u8 {
     }
 }
 
+pub trait ActAsXywh {
+    fn xywh(&self) -> (usize, usize, usize, usize);
+}
+
+impl ActAsXywh for (usize, usize, usize, usize) {
+    fn xywh(&self) -> (usize, usize, usize, usize) {
+        *self
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct Rectangle {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl From<(usize, usize, usize, usize)> for Rectangle {
+    fn from((x, y, width, height): (usize, usize, usize, usize)) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+impl ActAsXywh for Rectangle {
+    fn xywh(&self) -> (usize, usize, usize, usize) {
+        let Rectangle {
+            x,
+            y,
+            width,
+            height,
+        } = self;
+        (*x, *y, *width, *height)
+    }
+}
+
+impl Rectangle {
+    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
 impl BytePerEightPixels {
     fn compute_eight_width(width: usize) -> usize {
         match width >> 3 {
@@ -91,15 +143,10 @@ impl BytePerEightPixels {
 
     pub fn update(
         &mut self,
-        rectangle: impl Into<Rectangle>,
+        xywh: impl ActAsXywh,
         src: &[impl ActAsMono],
     ) -> BytePerEightPixelsResult<()> {
-        let Rectangle {
-            x,
-            y,
-            width,
-            height,
-        } = rectangle.into();
+        let (x, y, width, height) = xywh.xywh();
         let data_width = self.eight_width;
 
         for step_y in 0..height {
@@ -147,13 +194,8 @@ impl BytePerEightPixels {
         &self.eight_data
     }
 
-    pub fn part_vec(&self, rectangle: impl Into<Rectangle>) -> (Rectangle, Vec<u8>) {
-        let Rectangle {
-            x,
-            y,
-            width,
-            height,
-        } = rectangle.into();
+    pub fn part_vec(&self, xywh: impl ActAsXywh) -> (Rectangle, Vec<u8>) {
+        let (x, y, width, height) = xywh.xywh();
         let src = &self.eight_data;
         let src_width = self.eight_width;
 
@@ -177,48 +219,6 @@ impl BytePerEightPixels {
             Rectangle::new(src_x * 8, y, result_width * 8, height),
             result,
         )
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct Rectangle {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
-}
-
-impl From<(usize, usize, usize, usize)> for Rectangle {
-    fn from((x, y, width, height): (usize, usize, usize, usize)) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
-impl Into<(usize, usize, usize, usize)> for Rectangle {
-    fn into(self) -> (usize, usize, usize, usize) {
-        let Rectangle {
-            x,
-            y,
-            width,
-            height,
-        } = self;
-        (x, y, width, height)
-    }
-}
-
-impl Rectangle {
-    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
     }
 }
 
@@ -381,22 +381,22 @@ mod test {
 
         let (n, re) = image.part_vec((0, 0, 3, 1));
         assert_eq!(vec![0b_0000_0000,], re);
-        assert_eq!((0, 0, 8, 1), n.into());
+        assert_eq!((0, 0, 8, 1), n.xywh());
 
         let (n, re) = image.part_vec((0, 1, 3, 1));
         assert_eq!(vec![0b_0000_0001,], re);
-        assert_eq!((0, 1, 8, 1), n.into());
+        assert_eq!((0, 1, 8, 1), n.xywh());
 
         let (n, re) = image.part_vec((7, 2, 1, 1));
         assert_eq!(vec![0b_0000_0110,], re);
-        assert_eq!((0, 2, 8, 1), n.into());
+        assert_eq!((0, 2, 8, 1), n.xywh());
 
         let (n, re) = image.part_vec((8, 2, 1, 1));
         assert_eq!(vec![0b_1000_0000,], re);
-        assert_eq!((8, 2, 8, 1), n.into());
+        assert_eq!((8, 2, 8, 1), n.xywh());
 
         let (n, re) = image.part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
-        assert_eq!((0, 2, 16, 1), n.into());
+        assert_eq!((0, 2, 16, 1), n.xywh());
     }
 }
