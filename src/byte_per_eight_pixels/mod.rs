@@ -117,7 +117,7 @@ impl BytePerEightPixels {
         }
 
         let mut o = Self::new(width, height);
-        o.update((0, 0, width, height), src);
+        o.update((0, 0, width, height), src).unwrap();
         Ok(o)
     }
 
@@ -247,13 +247,6 @@ fn into_as_eight(x: usize, width: usize) -> AsEight {
 #[cfg(test)]
 mod test {
     use crate::*;
-
-    fn result(image: &BytePerEightPixels) -> String {
-        image
-            .as_vec()
-            .into_iter()
-            .fold("".to_string(), |a, byte| a + &format!("{:>08b}\n", byte))
-    }
 
     #[test]
     fn test() {
