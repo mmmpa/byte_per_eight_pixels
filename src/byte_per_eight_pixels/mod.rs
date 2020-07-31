@@ -1,6 +1,5 @@
 use crate::*;
-use std::cmp::{max, min};
-use std::io::Write;
+use std::cmp::min;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BytePerEightPixels {
@@ -210,7 +209,7 @@ impl BytePerEightPixels {
             width: result_width,
         } = into_as_eight(x, width);
 
-        let mut result = vec![0u8; (result_width * height)];
+        let mut result = vec![0u8; result_width * height];
 
         for step_y in 0..height {
             for step_x in 0..result_width {
@@ -245,12 +244,12 @@ fn into_as_eight(x: usize, width: usize) -> AsEight {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod test {
     use crate::*;
 
     #[test]
     fn test() {
-        #[rustfmt::skip]
         let data = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             1, 0, 0, 0, 1, 0, 0, 1,
@@ -259,9 +258,7 @@ mod test {
 
         let image = BytePerEightPixels::with_data(8, 3, &data).unwrap();
 
-        #[rustfmt::skip]
         assert_eq!(
-            #[rustfmt::skip]
             [
                 0b_1100_0010,
                 0b_1000_1001,
@@ -272,8 +269,8 @@ mod test {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_invalid_meta() {
-        #[rustfmt::skip]
         let data = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             1, 0, 0, 0, 1, 0, 0, 1,
@@ -287,7 +284,6 @@ mod test {
 
     #[test]
     fn test_short() {
-        #[rustfmt::skip]
         let data = vec![
             1, 1, 0, 0, 0,
             1, 0, 0, 0, 1,
@@ -309,7 +305,6 @@ mod test {
 
     #[test]
     fn test_long() {
-        #[rustfmt::skip]
         let data = vec![
             1, 1, 0, 0, 0, 0, 1, 0,  0, 1, 0,
             1, 0, 0, 0, 1, 0, 0, 1,  1, 0, 1,
@@ -329,14 +324,9 @@ mod test {
         );
     }
 
-    fn test_print(data: &[u8]) {
-        data.iter().for_each(|r| println!("{:>08b}", r));
-    }
-
     #[test]
     fn test_update() {
-        #[rustfmt::skip]
-          let data = vec![
+        let data = vec![
             0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0,
             0, 0, 0, 0, 0, 0, 1, 1,  0, 0, 0,
             0, 0, 0, 0, 0, 1, 0, 1,  0, 0, 0,
@@ -359,7 +349,6 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            #[rustfmt::skip]
             [
                 0b_0000_0000, 0b_0000_0000,
                 0b_0000_0001, 0b_0000_0000,
@@ -377,6 +366,7 @@ mod test {
             ],
             re
         );
+        assert_eq!((0, 1, 16, 2), n.xywh());
 
         let (n, re) = image.part_vec((0, 0, 3, 1));
         assert_eq!(vec![0b_0000_0000,], re);
@@ -407,7 +397,6 @@ mod test {
             image
                 .update(
                     (6, 2, 3, 2),
-                    #[rustfmt::skip]
                     &vec![
                         1, 1, 1,
                         1, 1, 1,
@@ -417,7 +406,6 @@ mod test {
                 .unwrap();
 
             assert_eq!(
-                #[rustfmt::skip]
                 [
                     0b_0000_0000,
                     0b_0000_0000,
@@ -433,7 +421,6 @@ mod test {
             image.update((0, 5, 1, 1), &vec![1]).unwrap();
 
             assert_eq!(
-                #[rustfmt::skip]
                 [
                     0b_0000_0000,
                     0b_0000_0000,
@@ -449,7 +436,6 @@ mod test {
             image.update((9, 0, 1, 1), &vec![1]).unwrap();
 
             assert_eq!(
-                #[rustfmt::skip]
                 [
                     0b_0000_0000,
                     0b_0000_0000,
