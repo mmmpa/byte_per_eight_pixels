@@ -1,9 +1,9 @@
 #![feature(stmt_expr_attributes)]
 
-mod eight_px_eight_bit;
+mod eight_px_uint_eight;
 mod error;
 
-pub use crate::eight_px_eight_bit::*;
+pub use crate::eight_px_uint_eight::*;
 pub use error::*;
 
-pub type EightPxU8Result<T> = Result<T, EightPxU8Error>;
+pub type EightPxUintEightResult<T> = Result<T, EightPxUintEightError>;

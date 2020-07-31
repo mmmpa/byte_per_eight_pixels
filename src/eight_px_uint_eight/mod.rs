@@ -2,7 +2,7 @@ use crate::*;
 use std::cmp::min;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct EightPxU8 {
+pub struct EightPxUintEight {
     width: usize,
     height: usize,
     eight_width: usize,
@@ -75,7 +75,7 @@ impl Rectangle {
     }
 }
 
-impl EightPxU8 {
+impl EightPxUintEight {
     fn compute_eight_width(width: usize) -> usize {
         match width >> 3 {
             m if m == 0 => 1,
@@ -95,9 +95,13 @@ impl EightPxU8 {
         }
     }
 
-    pub fn with_data(width: usize, height: usize, src: &[impl ActAsMono]) -> EightPxU8Result<Self> {
+    pub fn with_data(
+        width: usize,
+        height: usize,
+        src: &[impl ActAsMono],
+    ) -> EightPxUintEightResult<Self> {
         if width * height != src.len() {
-            return Err(EightPxU8Error::InvalidLengthData);
+            return Err(EightPxUintEightError::InvalidLengthData);
         }
 
         let mut o = Self::new(width, height);
@@ -109,9 +113,9 @@ impl EightPxU8 {
         eight_width: usize,
         height: usize,
         eight_data: Vec<u8>,
-    ) -> EightPxU8Result<Self> {
+    ) -> EightPxUintEightResult<Self> {
         if eight_width * height != eight_data.len() {
-            return Err(EightPxU8Error::InvalidLengthData);
+            return Err(EightPxUintEightError::InvalidLengthData);
         }
 
         let o = Self {
@@ -123,7 +127,11 @@ impl EightPxU8 {
         Ok(o)
     }
 
-    pub fn update(&mut self, xywh: impl ActAsXywh, src: &[impl ActAsMono]) -> EightPxU8Result<()> {
+    pub fn update(
+        &mut self,
+        xywh: impl ActAsXywh,
+        src: &[impl ActAsMono],
+    ) -> EightPxUintEightResult<()> {
         let (x, y, width, height) = xywh.xywh();
 
         // avoid unsigned subtract overflow
@@ -241,11 +249,11 @@ mod test {
 
     #[test]
     fn test_eight_width(){
-        assert_eq!(1, EightPxU8::compute_eight_width(7));
-        assert_eq!(1, EightPxU8::compute_eight_width(8));
-        assert_eq!(2, EightPxU8::compute_eight_width(9));
-        assert_eq!(2, EightPxU8::compute_eight_width(16));
-        assert_eq!(3, EightPxU8::compute_eight_width(17));
+        assert_eq!(1, EightPxUintEight::compute_eight_width(7));
+        assert_eq!(1, EightPxUintEight::compute_eight_width(8));
+        assert_eq!(2, EightPxUintEight::compute_eight_width(9));
+        assert_eq!(2, EightPxUintEight::compute_eight_width(16));
+        assert_eq!(3, EightPxUintEight::compute_eight_width(17));
     }
 
     #[test]
@@ -256,7 +264,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = EightPxU8::with_data(8, 3, &data).unwrap();
+        let image = EightPxUintEight::with_data(8, 3, &data).unwrap();
 
         assert_eq!(
             [
@@ -277,7 +285,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = EightPxU8::with_data(8, 2, &data);
+        let image = EightPxUintEight::with_data(8, 2, &data);
 
         assert!(image.is_err());
     }
@@ -290,7 +298,7 @@ mod test {
             0, 0, 0, 0, 0,
         ];
 
-        let image = EightPxU8::with_data(5, 3, &data).unwrap();
+        let image = EightPxUintEight::with_data(5, 3, &data).unwrap();
 
         assert_eq!(
             #[rustfmt::skip]
@@ -311,7 +319,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 1,
         ];
 
-        let image = EightPxU8::with_data(11, 3, &data).unwrap();
+        let image = EightPxUintEight::with_data(11, 3, &data).unwrap();
 
         assert_eq!(
             #[rustfmt::skip]
@@ -332,7 +340,7 @@ mod test {
             0, 0, 0, 0, 0, 1, 0, 1,  0, 0, 0,
         ];
 
-        let mut image = EightPxU8::with_data(11, 3, &data).unwrap();
+        let mut image = EightPxUintEight::with_data(11, 3, &data).unwrap();
 
         image
             .update(
@@ -400,7 +408,7 @@ mod test {
     #[test]
     fn test_update_overflow() {
         {
-            let mut image = EightPxU8::new(8, 4);
+            let mut image = EightPxUintEight::new(8, 4);
 
             image
                 .update(
@@ -424,7 +432,7 @@ mod test {
             );
         }
         {
-            let mut image = EightPxU8::new(8, 4);
+            let mut image = EightPxUintEight::new(8, 4);
 
             image.update((0, 5, 1, 1), &vec![1]).unwrap();
 
@@ -439,7 +447,7 @@ mod test {
             );
         }
         {
-            let mut image = EightPxU8::new(8, 4);
+            let mut image = EightPxUintEight::new(8, 4);
 
             image.update((9, 0, 1, 1), &vec![1]).unwrap();
 
