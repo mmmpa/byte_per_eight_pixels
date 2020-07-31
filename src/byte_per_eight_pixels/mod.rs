@@ -2,6 +2,7 @@ use crate::*;
 use std::cmp::max;
 use std::io::Write;
 
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BytePerEightPixels {
     width: usize,
     height: usize,
@@ -9,7 +10,7 @@ pub struct BytePerEightPixels {
     eight_data: Vec<u8>,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Mono {
     Zero,
     One,
@@ -35,12 +36,16 @@ impl ActAsMono for u8 {
 }
 
 impl BytePerEightPixels {
-    pub fn new(width: usize, height: usize) -> Self {
-        let eight_width = match width >> 3 {
+    fn compute_eight_width(width: usize) -> usize {
+        match width >> 3 {
             m if m == 0 => 1,
             m if width % 8 == 0 => m,
             m => m + 1,
-        };
+        }
+    }
+
+    pub fn new(width: usize, height: usize) -> Self {
+        let eight_width = Self::compute_eight_width(width);
 
         Self {
             width,
@@ -61,6 +66,26 @@ impl BytePerEightPixels {
 
         let mut o = Self::new(width, height);
         o.update((0, 0, width, height), src);
+        Ok(o)
+    }
+
+    pub fn with_eight_data(
+        width: usize,
+        height: usize,
+        eight_data: Vec<u8>,
+    ) -> BytePerEightPixelsResult<Self> {
+        let eight_width = Self::compute_eight_width(width);
+
+        if eight_width * height != eight_data.len() {
+            return Err(BytePerEightPixelsError::InvalidLengthData);
+        }
+
+        let o = Self {
+            width,
+            height,
+            eight_width,
+            eight_data,
+        };
         Ok(o)
     }
 
@@ -122,7 +147,7 @@ impl BytePerEightPixels {
         &self.eight_data
     }
 
-    pub fn as_part_vec(&self, rectangle: impl Into<Rectangle>) -> (Rectangle, Vec<u8>) {
+    pub fn part_vec(&self, rectangle: impl Into<Rectangle>) -> (Rectangle, Vec<u8>) {
         let Rectangle {
             x,
             y,
@@ -155,6 +180,7 @@ impl BytePerEightPixels {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Rectangle {
     pub x: usize,
     pub y: usize,
@@ -343,7 +369,7 @@ mod test {
             image.as_vec()
         );
 
-        let (n, re) = image.as_part_vec((6, 1, 3, 2));
+        let (n, re) = image.part_vec((6, 1, 3, 2));
         assert_eq!(
             #[rustfmt::skip]
             vec![
@@ -353,23 +379,23 @@ mod test {
             re
         );
 
-        let (n, re) = image.as_part_vec((0, 0, 3, 1));
+        let (n, re) = image.part_vec((0, 0, 3, 1));
         assert_eq!(vec![0b_0000_0000,], re);
         assert_eq!((0, 0, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec((0, 1, 3, 1));
+        let (n, re) = image.part_vec((0, 1, 3, 1));
         assert_eq!(vec![0b_0000_0001,], re);
         assert_eq!((0, 1, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec((7, 2, 1, 1));
+        let (n, re) = image.part_vec((7, 2, 1, 1));
         assert_eq!(vec![0b_0000_0110,], re);
         assert_eq!((0, 2, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec((8, 2, 1, 1));
+        let (n, re) = image.part_vec((8, 2, 1, 1));
         assert_eq!(vec![0b_1000_0000,], re);
         assert_eq!((8, 2, 8, 1), n.into());
 
-        let (n, re) = image.as_part_vec((7, 2, 2, 1));
+        let (n, re) = image.part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
         assert_eq!((0, 2, 16, 1), n.into());
     }
