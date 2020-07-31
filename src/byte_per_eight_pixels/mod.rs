@@ -52,17 +52,6 @@ pub struct Rectangle {
     pub height: usize,
 }
 
-impl From<(usize, usize, usize, usize)> for Rectangle {
-    fn from((x, y, width, height): (usize, usize, usize, usize)) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
 impl ActAsXywh for Rectangle {
     fn xywh(&self) -> (usize, usize, usize, usize) {
         let Rectangle {
@@ -154,6 +143,7 @@ impl BytePerEightPixels {
 
         let data_width = self.eight_width;
 
+        // discard pixels that overflow
         for step_y in 0..min(height, self.height - y) {
             for step_x in 0..min(width, self.width - x) {
                 let color = src[width * step_y + step_x].act_as();
@@ -199,6 +189,8 @@ impl BytePerEightPixels {
         &self.eight_data
     }
 
+    /// Return real pixel size rectangle that is offset and expanded to fit with data of 8 pixels in a byte
+    /// that include an area of xywh.
     pub fn part_vec(&self, xywh: impl ActAsXywh) -> (Rectangle, Vec<u8>) {
         let (x, y, width, height) = xywh.xywh();
         let src = &self.eight_data;
@@ -247,6 +239,15 @@ fn into_as_eight(x: usize, width: usize) -> AsEight {
 #[rustfmt::skip]
 mod test {
     use crate::*;
+
+    #[test]
+    fn test_eight_width(){
+        assert_eq!(1,BytePerEightPixels::compute_eight_width(7));
+        assert_eq!(1,BytePerEightPixels::compute_eight_width(8));
+        assert_eq!(2,BytePerEightPixels::compute_eight_width(9));
+        assert_eq!(2,BytePerEightPixels::compute_eight_width(16));
+        assert_eq!(3,BytePerEightPixels::compute_eight_width(17));
+    }
 
     #[test]
     fn test() {
