@@ -1,5 +1,5 @@
 use crate::*;
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::io::Write;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -147,10 +147,16 @@ impl BytePerEightPixels {
         src: &[impl ActAsMono],
     ) -> BytePerEightPixelsResult<()> {
         let (x, y, width, height) = xywh.xywh();
+
+        // avoid unsigned subtract overflow
+        if x > self.width || y > self.height {
+            return Ok(());
+        }
+
         let data_width = self.eight_width;
 
-        for step_y in 0..height {
-            for step_x in 0..width {
+        for step_y in 0..min(height, self.height - y) {
+            for step_x in 0..min(width, self.width - x) {
                 let color = src[width * step_y + step_x].act_as();
                 let data_x = x + step_x;
                 let data_y = y + step_y;
@@ -337,7 +343,7 @@ mod test {
     #[test]
     fn test_update() {
         #[rustfmt::skip]
-        let data = vec![
+          let data = vec![
             0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0,
             0, 0, 0, 0, 0, 0, 1, 1,  0, 0, 0,
             0, 0, 0, 0, 0, 1, 0, 1,  0, 0, 0,
@@ -398,5 +404,67 @@ mod test {
         let (n, re) = image.part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
         assert_eq!((0, 2, 16, 1), n.xywh());
+    }
+
+    #[test]
+    fn test_update_overflow() {
+        {
+            let mut image = BytePerEightPixels::new(8, 4);
+
+            image
+                .update(
+                    (6, 2, 3, 2),
+                    #[rustfmt::skip]
+                    &vec![
+                        1, 1, 1,
+                        1, 1, 1,
+                        1, 1, 1,
+                    ],
+                )
+                .unwrap();
+
+            assert_eq!(
+                #[rustfmt::skip]
+                [
+                    0b_0000_0000,
+                    0b_0000_0000,
+                    0b_0000_0011,
+                    0b_0000_0011,
+                ],
+                image.as_vec()
+            );
+        }
+        {
+            let mut image = BytePerEightPixels::new(8, 4);
+
+            image.update((0, 5, 1, 1), &vec![1]).unwrap();
+
+            assert_eq!(
+                #[rustfmt::skip]
+                [
+                    0b_0000_0000,
+                    0b_0000_0000,
+                    0b_0000_0000,
+                    0b_0000_0000,
+                ],
+                image.as_vec()
+            );
+        }
+        {
+            let mut image = BytePerEightPixels::new(8, 4);
+
+            image.update((9, 0, 1, 1), &vec![1]).unwrap();
+
+            assert_eq!(
+                #[rustfmt::skip]
+                [
+                    0b_0000_0000,
+                    0b_0000_0000,
+                    0b_0000_0000,
+                    0b_0000_0000,
+                ],
+                image.as_vec()
+            );
+        }
     }
 }
