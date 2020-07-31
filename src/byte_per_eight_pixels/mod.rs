@@ -193,8 +193,15 @@ impl BytePerEightPixels {
     /// that include an area of xywh.
     pub fn part_vec(&self, xywh: impl ActAsXywh) -> (Rectangle, Vec<u8>) {
         let (x, y, width, height) = xywh.xywh();
+
+        // avoid unsigned subtract overflow
+        if x > self.width || y > self.height {
+            return (Rectangle::new(0, 0, 0, 0), vec![]);
+        }
+
         let src = &self.eight_data;
         let src_width = self.eight_width;
+        let src_height = self.height;
 
         let AsEight {
             x: src_x,
@@ -203,7 +210,10 @@ impl BytePerEightPixels {
 
         let mut result = vec![0u8; result_width * height];
 
-        for step_y in 0..height {
+        let result_height = min(height, src_height - y);
+        let result_width = min(result_width, src_width - src_x);
+
+        for step_y in 0..result_height {
             for step_x in 0..result_width {
                 let real_i = src_width * (y + step_y) + src_x + step_x;
                 let result_i = result_width * step_y + step_x;
@@ -213,7 +223,7 @@ impl BytePerEightPixels {
         }
 
         (
-            Rectangle::new(src_x * 8, y, result_width * 8, height),
+            Rectangle::new(src_x * 8, y, result_width * 8, result_height),
             result,
         )
     }
@@ -388,6 +398,14 @@ mod test {
         let (n, re) = image.part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
         assert_eq!((0, 2, 16, 1), n.xywh());
+
+        let (n, re) = image.part_vec((0, 4, 2, 1));
+        assert_eq!(0, re.len());
+        assert_eq!((0, 0, 0, 0), n.xywh());
+
+        let (n, re) = image.part_vec((12, 0, 2, 1));
+        assert_eq!(0, re.len());
+        assert_eq!((0, 0, 0, 0), n.xywh());
     }
 
     #[test]
