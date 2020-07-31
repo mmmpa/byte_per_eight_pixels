@@ -1,5 +1,5 @@
 [package]
-name = "byte_per_eight_pixels"
+name = "eight_px_eight_bit"
 version = "0.1.0"
 authors = ["mmmpa <mmmpa.mmmpa@gmail.com>"]
 edition = "2018"

@@ -1,9 +1,9 @@
 #![feature(stmt_expr_attributes)]
 
-mod byte_per_eight_pixels;
+mod eight_px_eight_bit;
 mod error;
 
-pub use crate::byte_per_eight_pixels::*;
+pub use crate::eight_px_eight_bit::*;
 pub use error::*;
 
-pub type BytePerEightPixelsResult<T> = Result<T, BytePerEightPixelsError>;
+pub type EightPxU8Result<T> = Result<T, EightPxU8Error>;

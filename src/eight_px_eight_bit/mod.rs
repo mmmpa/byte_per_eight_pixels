@@ -2,7 +2,7 @@ use crate::*;
 use std::cmp::min;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct BytePerEightPixels {
+pub struct EightPxU8 {
     width: usize,
     height: usize,
     eight_width: usize,
@@ -75,7 +75,7 @@ impl Rectangle {
     }
 }
 
-impl BytePerEightPixels {
+impl EightPxU8 {
     fn compute_eight_width(width: usize) -> usize {
         match width >> 3 {
             m if m == 0 => 1,
@@ -95,13 +95,9 @@ impl BytePerEightPixels {
         }
     }
 
-    pub fn with_data(
-        width: usize,
-        height: usize,
-        src: &[impl ActAsMono],
-    ) -> BytePerEightPixelsResult<Self> {
+    pub fn with_data(width: usize, height: usize, src: &[impl ActAsMono]) -> EightPxU8Result<Self> {
         if width * height != src.len() {
-            return Err(BytePerEightPixelsError::InvalidLengthData);
+            return Err(EightPxU8Error::InvalidLengthData);
         }
 
         let mut o = Self::new(width, height);
@@ -110,18 +106,16 @@ impl BytePerEightPixels {
     }
 
     pub fn with_eight_data(
-        width: usize,
+        eight_width: usize,
         height: usize,
         eight_data: Vec<u8>,
-    ) -> BytePerEightPixelsResult<Self> {
-        let eight_width = Self::compute_eight_width(width);
-
+    ) -> EightPxU8Result<Self> {
         if eight_width * height != eight_data.len() {
-            return Err(BytePerEightPixelsError::InvalidLengthData);
+            return Err(EightPxU8Error::InvalidLengthData);
         }
 
         let o = Self {
-            width,
+            width: eight_width * 8,
             height,
             eight_width,
             eight_data,
@@ -129,11 +123,7 @@ impl BytePerEightPixels {
         Ok(o)
     }
 
-    pub fn update(
-        &mut self,
-        xywh: impl ActAsXywh,
-        src: &[impl ActAsMono],
-    ) -> BytePerEightPixelsResult<()> {
+    pub fn update(&mut self, xywh: impl ActAsXywh, src: &[impl ActAsMono]) -> EightPxU8Result<()> {
         let (x, y, width, height) = xywh.xywh();
 
         // avoid unsigned subtract overflow
@@ -189,8 +179,7 @@ impl BytePerEightPixels {
         &self.eight_data
     }
 
-    /// Return real pixel size rectangle that is offset and expanded to fit with data of 8 pixels in a byte
-    /// that include an area of xywh.
+    /// Return rectangle as 1 cell has 8 pixels.
     pub fn part_vec(&self, xywh: impl ActAsXywh) -> (Rectangle, Vec<u8>) {
         let (x, y, width, height) = xywh.xywh();
 
@@ -223,7 +212,7 @@ impl BytePerEightPixels {
         }
 
         (
-            Rectangle::new(src_x * 8, y, result_width * 8, result_height),
+            Rectangle::new(src_x, y, result_width, result_height),
             result,
         )
     }
@@ -252,11 +241,11 @@ mod test {
 
     #[test]
     fn test_eight_width(){
-        assert_eq!(1,BytePerEightPixels::compute_eight_width(7));
-        assert_eq!(1,BytePerEightPixels::compute_eight_width(8));
-        assert_eq!(2,BytePerEightPixels::compute_eight_width(9));
-        assert_eq!(2,BytePerEightPixels::compute_eight_width(16));
-        assert_eq!(3,BytePerEightPixels::compute_eight_width(17));
+        assert_eq!(1, EightPxU8::compute_eight_width(7));
+        assert_eq!(1, EightPxU8::compute_eight_width(8));
+        assert_eq!(2, EightPxU8::compute_eight_width(9));
+        assert_eq!(2, EightPxU8::compute_eight_width(16));
+        assert_eq!(3, EightPxU8::compute_eight_width(17));
     }
 
     #[test]
@@ -267,7 +256,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = BytePerEightPixels::with_data(8, 3, &data).unwrap();
+        let image = EightPxU8::with_data(8, 3, &data).unwrap();
 
         assert_eq!(
             [
@@ -288,7 +277,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = BytePerEightPixels::with_data(8, 2, &data);
+        let image = EightPxU8::with_data(8, 2, &data);
 
         assert!(image.is_err());
     }
@@ -301,7 +290,7 @@ mod test {
             0, 0, 0, 0, 0,
         ];
 
-        let image = BytePerEightPixels::with_data(5, 3, &data).unwrap();
+        let image = EightPxU8::with_data(5, 3, &data).unwrap();
 
         assert_eq!(
             #[rustfmt::skip]
@@ -322,7 +311,7 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 1,
         ];
 
-        let image = BytePerEightPixels::with_data(11, 3, &data).unwrap();
+        let image = EightPxU8::with_data(11, 3, &data).unwrap();
 
         assert_eq!(
             #[rustfmt::skip]
@@ -343,7 +332,7 @@ mod test {
             0, 0, 0, 0, 0, 1, 0, 1,  0, 0, 0,
         ];
 
-        let mut image = BytePerEightPixels::with_data(11, 3, &data).unwrap();
+        let mut image = EightPxU8::with_data(11, 3, &data).unwrap();
 
         image
             .update(
@@ -377,27 +366,27 @@ mod test {
             ],
             re
         );
-        assert_eq!((0, 1, 16, 2), n.xywh());
+        assert_eq!((0, 1, 2, 2), n.xywh());
 
         let (n, re) = image.part_vec((0, 0, 3, 1));
         assert_eq!(vec![0b_0000_0000,], re);
-        assert_eq!((0, 0, 8, 1), n.xywh());
+        assert_eq!((0, 0, 1, 1), n.xywh());
 
         let (n, re) = image.part_vec((0, 1, 3, 1));
         assert_eq!(vec![0b_0000_0001,], re);
-        assert_eq!((0, 1, 8, 1), n.xywh());
+        assert_eq!((0, 1, 1, 1), n.xywh());
 
         let (n, re) = image.part_vec((7, 2, 1, 1));
         assert_eq!(vec![0b_0000_0110,], re);
-        assert_eq!((0, 2, 8, 1), n.xywh());
+        assert_eq!((0, 2, 1, 1), n.xywh());
 
         let (n, re) = image.part_vec((8, 2, 1, 1));
         assert_eq!(vec![0b_1000_0000,], re);
-        assert_eq!((8, 2, 8, 1), n.xywh());
+        assert_eq!((1, 2, 1, 1), n.xywh());
 
         let (n, re) = image.part_vec((7, 2, 2, 1));
         assert_eq!(vec![0b_0000_0110, 0b_1000_0000], re);
-        assert_eq!((0, 2, 16, 1), n.xywh());
+        assert_eq!((0, 2, 2, 1), n.xywh());
 
         let (n, re) = image.part_vec((0, 4, 2, 1));
         assert_eq!(0, re.len());
@@ -411,7 +400,7 @@ mod test {
     #[test]
     fn test_update_overflow() {
         {
-            let mut image = BytePerEightPixels::new(8, 4);
+            let mut image = EightPxU8::new(8, 4);
 
             image
                 .update(
@@ -435,7 +424,7 @@ mod test {
             );
         }
         {
-            let mut image = BytePerEightPixels::new(8, 4);
+            let mut image = EightPxU8::new(8, 4);
 
             image.update((0, 5, 1, 1), &vec![1]).unwrap();
 
@@ -450,7 +439,7 @@ mod test {
             );
         }
         {
-            let mut image = BytePerEightPixels::new(8, 4);
+            let mut image = EightPxU8::new(8, 4);
 
             image.update((9, 0, 1, 1), &vec![1]).unwrap();
 
