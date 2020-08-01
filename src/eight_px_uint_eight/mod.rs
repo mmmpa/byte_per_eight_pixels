@@ -5,26 +5,18 @@ use std::cmp::min;
 pub struct EightPxUintEight {
     width: usize,
     height: usize,
-    eight_width: usize,
+    eight_length: usize,
     eight_data: Vec<u8>,
 }
 
 impl EightPxUintEight {
-    fn compute_eight_width(width: usize) -> usize {
-        match width >> 3 {
-            m if m == 0 => 1,
-            m if width % 8 == 0 => m,
-            m => m + 1,
-        }
-    }
-
     pub fn new(width: usize, height: usize) -> Self {
-        let eight_width = Self::compute_eight_width(width);
+        let eight_width = compute_eight_length(width);
 
         Self {
             width,
             height,
-            eight_width,
+            eight_length: eight_width,
             eight_data: vec![0; eight_width * height],
         }
     }
@@ -55,7 +47,7 @@ impl EightPxUintEight {
         let o = Self {
             width: eight_width * 8,
             height,
-            eight_width,
+            eight_length: eight_width,
             eight_data,
         };
         Ok(o)
@@ -73,7 +65,7 @@ impl EightPxUintEight {
             return Ok(());
         }
 
-        let data_width = self.eight_width;
+        let data_width = self.eight_length;
 
         // discard pixels that overflow
         for step_y in 0..min(height, self.height - y) {
@@ -131,7 +123,7 @@ impl EightPxUintEight {
         }
 
         let src = &self.eight_data;
-        let src_width = self.eight_width;
+        let src_width = self.eight_length;
         let src_height = self.height;
 
         let AsEight {
@@ -180,15 +172,6 @@ fn into_as_eight(x: usize, width: usize) -> AsEight {
 #[rustfmt::skip]
 mod test {
     use crate::*;
-
-    #[test]
-    fn test_eight_width(){
-        assert_eq!(1, EightPxUintEight::compute_eight_width(7));
-        assert_eq!(1, EightPxUintEight::compute_eight_width(8));
-        assert_eq!(2, EightPxUintEight::compute_eight_width(9));
-        assert_eq!(2, EightPxUintEight::compute_eight_width(16));
-        assert_eq!(3, EightPxUintEight::compute_eight_width(17));
-    }
 
     #[test]
     fn test() {

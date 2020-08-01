@@ -10,16 +10,8 @@ pub struct VerticalEightPxUintEight {
 }
 
 impl VerticalEightPxUintEight {
-    fn compute_eight_height(height: usize) -> usize {
-        match height >> 3 {
-            m if m == 0 => 1,
-            m if height % 8 == 0 => m,
-            m => m + 1,
-        }
-    }
-
     pub fn new(width: usize, height: usize) -> Self {
-        let eight_height = Self::compute_eight_height(height);
+        let eight_height = compute_eight_length(height);
 
         Self {
             width,
@@ -178,15 +170,6 @@ fn into_as_eight(y: usize, height: usize) -> AsEight {
 #[rustfmt::skip]
 mod test {
     use crate::*;
-
-    #[test]
-    fn test_eight_width(){
-        assert_eq!(1, VerticalEightPxUintEight::compute_eight_height(7));
-        assert_eq!(1, VerticalEightPxUintEight::compute_eight_height(8));
-        assert_eq!(2, VerticalEightPxUintEight::compute_eight_height(9));
-        assert_eq!(2, VerticalEightPxUintEight::compute_eight_height(16));
-        assert_eq!(3, VerticalEightPxUintEight::compute_eight_height(17));
-    }
 
     #[test]
     fn test() {
