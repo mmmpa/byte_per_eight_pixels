@@ -175,7 +175,6 @@ mod test {
         let image = EightPxUintEight::with_data(5, 3, &data).unwrap();
 
         assert_eq!(
-            #[rustfmt::skip]
             [
                 0b_1100_0000,
                 0b_1000_1000,
@@ -196,7 +195,6 @@ mod test {
         let image = EightPxUintEight::with_data(11, 3, &data).unwrap();
 
         assert_eq!(
-            #[rustfmt::skip]
             [
                 0b_1100_0010, 0b_0100_0000,
                 0b_1000_1001, 0b_1010_0000,
@@ -241,7 +239,6 @@ mod test {
 
         let (n, re) = image.part_vec((6, 1, 3, 2));
         assert_eq!(
-            #[rustfmt::skip]
             vec![
                 0b_0000_0001, 0b_0000_0000,
                 0b_0000_0110, 0b_1000_0000,

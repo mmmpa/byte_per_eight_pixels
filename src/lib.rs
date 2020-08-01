@@ -1,5 +1,3 @@
-#![feature(stmt_expr_attributes)]
-
 mod common;
 mod eight_px_uint_eight;
 mod error;

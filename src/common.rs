@@ -116,7 +116,8 @@ impl Rectangle {
 }
 
 mod test {
-    use crate::*;
+    #[allow(unused_imports)]
+    use crate::compute_eight_length;
 
     #[test]
     fn test_eight_width() {
