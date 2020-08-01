@@ -36,6 +36,18 @@ pub fn draw(data: &mut [u8], data_i: usize, shifted_xy: usize, color: Mono) {
         }
     }
 }
+pub struct AsEight {
+    pub start: usize,
+    pub length: usize,
+}
+
+pub fn into_as_eight(src: usize, length: usize) -> AsEight {
+    let start = src >> 3;
+    let end = (src + length - 1) >> 3;
+    let length = end - start + 1;
+
+    AsEight { start, length }
+}
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Mono {

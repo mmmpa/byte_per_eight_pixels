@@ -73,34 +73,7 @@ impl VerticalEightPxUintEight {
                 let data_y = y + step_y;
                 let data_i = self.width * (data_y >> 3) + data_x;
 
-                match color {
-                    Mono::One => {
-                        self.eight_data[data_i] |= match data_y % 8 {
-                            0 => 0b_1000_0000,
-                            1 => 0b_0100_0000,
-                            2 => 0b_0010_0000,
-                            3 => 0b_0001_0000,
-                            4 => 0b_0000_1000,
-                            5 => 0b_0000_0100,
-                            6 => 0b_0000_0010,
-                            7 => 0b_0000_0001,
-                            _ => 0,
-                        }
-                    }
-                    Mono::Zero => {
-                        self.eight_data[data_i] &= match data_y % 8 {
-                            0 => 0b_0111_1111,
-                            1 => 0b_1011_1111,
-                            2 => 0b_1101_1111,
-                            3 => 0b_1110_1111,
-                            4 => 0b_1111_0111,
-                            5 => 0b_1111_1011,
-                            6 => 0b_1111_1101,
-                            7 => 0b_1111_1110,
-                            _ => 0,
-                        }
-                    }
-                }
+                draw(&mut self.eight_data, data_i, data_y, color);
             }
         }
 
@@ -125,8 +98,8 @@ impl VerticalEightPxUintEight {
         let src_height = self.eight_length;
 
         let AsEight {
-            y: src_y,
-            height: result_height,
+            start: src_y,
+            length: result_height,
         } = into_as_eight(y, height);
 
         let mut result = vec![0u8; width * result_height];
@@ -147,22 +120,6 @@ impl VerticalEightPxUintEight {
             Rectangle::new(x, src_y, result_width, result_height),
             result,
         )
-    }
-}
-
-struct AsEight {
-    pub y: usize,
-    pub height: usize,
-}
-
-fn into_as_eight(y: usize, height: usize) -> AsEight {
-    let y_start = y >> 3;
-    let y_end = (y + height - 1) >> 3;
-    let byte_height = y_end - y_start + 1;
-
-    AsEight {
-        y: y_start,
-        height: byte_height,
     }
 }
 

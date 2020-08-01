@@ -75,34 +75,7 @@ impl EightPxUintEight {
                 let data_y = y + step_y;
                 let data_i = data_width * data_y + (data_x >> 3);
 
-                match color {
-                    Mono::One => {
-                        self.eight_data[data_i] |= match data_x % 8 {
-                            0 => 0b_1000_0000,
-                            1 => 0b_0100_0000,
-                            2 => 0b_0010_0000,
-                            3 => 0b_0001_0000,
-                            4 => 0b_0000_1000,
-                            5 => 0b_0000_0100,
-                            6 => 0b_0000_0010,
-                            7 => 0b_0000_0001,
-                            _ => 0,
-                        }
-                    }
-                    Mono::Zero => {
-                        self.eight_data[data_i] &= match data_x % 8 {
-                            0 => 0b_0111_1111,
-                            1 => 0b_1011_1111,
-                            2 => 0b_1101_1111,
-                            3 => 0b_1110_1111,
-                            4 => 0b_1111_0111,
-                            5 => 0b_1111_1011,
-                            6 => 0b_1111_1101,
-                            7 => 0b_1111_1110,
-                            _ => 0,
-                        }
-                    }
-                }
+                draw(&mut self.eight_data, data_i, data_x, color);
             }
         }
 
@@ -127,8 +100,8 @@ impl EightPxUintEight {
         let src_height = self.height;
 
         let AsEight {
-            x: src_x,
-            width: result_width,
+            start: src_x,
+            length: result_width,
         } = into_as_eight(x, width);
 
         let mut result = vec![0u8; result_width * height];
@@ -149,22 +122,6 @@ impl EightPxUintEight {
             Rectangle::new(src_x, y, result_width, result_height),
             result,
         )
-    }
-}
-
-struct AsEight {
-    pub x: usize,
-    pub width: usize,
-}
-
-fn into_as_eight(x: usize, width: usize) -> AsEight {
-    let x_start = x >> 3;
-    let x_end = (x + width - 1) >> 3;
-    let byte_width = x_end - x_start + 1;
-
-    AsEight {
-        x: x_start,
-        width: byte_width,
     }
 }
 
