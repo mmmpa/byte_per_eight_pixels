@@ -6,6 +6,37 @@ pub fn compute_eight_length(src: usize) -> usize {
     }
 }
 
+pub fn draw(data: &mut [u8], data_i: usize, shifted_xy: usize, color: Mono) {
+    match color {
+        Mono::One => {
+            data[data_i] |= match shifted_xy % 8 {
+                0 => 0b_1000_0000,
+                1 => 0b_0100_0000,
+                2 => 0b_0010_0000,
+                3 => 0b_0001_0000,
+                4 => 0b_0000_1000,
+                5 => 0b_0000_0100,
+                6 => 0b_0000_0010,
+                7 => 0b_0000_0001,
+                _ => 0,
+            }
+        }
+        Mono::Zero => {
+            data[data_i] &= match shifted_xy % 8 {
+                0 => 0b_0111_1111,
+                1 => 0b_1011_1111,
+                2 => 0b_1101_1111,
+                3 => 0b_1110_1111,
+                4 => 0b_1111_0111,
+                5 => 0b_1111_1011,
+                6 => 0b_1111_1101,
+                7 => 0b_1111_1110,
+                _ => 0,
+            }
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Mono {
     Zero,

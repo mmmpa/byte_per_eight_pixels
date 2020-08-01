@@ -5,19 +5,19 @@ use std::cmp::min;
 pub struct VerticalEightPxUintEight {
     width: usize,
     height: usize,
-    eight_height: usize,
+    eight_length: usize,
     eight_data: Vec<u8>,
 }
 
 impl VerticalEightPxUintEight {
     pub fn new(width: usize, height: usize) -> Self {
-        let eight_height = compute_eight_length(height);
+        let eight_length = compute_eight_length(height);
 
         Self {
             width,
             height,
-            eight_height,
-            eight_data: vec![0; width * eight_height],
+            eight_length,
+            eight_data: vec![0; width * eight_length],
         }
     }
 
@@ -47,7 +47,7 @@ impl VerticalEightPxUintEight {
         let o = Self {
             width,
             height: eight_height * 8,
-            eight_height,
+            eight_length: eight_height,
             eight_data,
         };
         Ok(o)
@@ -122,7 +122,7 @@ impl VerticalEightPxUintEight {
 
         let src = &self.eight_data;
         let src_width = self.width;
-        let src_height = self.eight_height;
+        let src_height = self.eight_length;
 
         let AsEight {
             y: src_y,
