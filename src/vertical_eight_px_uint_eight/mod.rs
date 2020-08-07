@@ -2,43 +2,35 @@ use crate::*;
 use std::cmp::min;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct VerticalEightPxUintEight {
+pub struct VerticalEightPxUintEight<D: EightData> {
     width: usize,
     height: usize,
     eight_length: usize,
-    eight_data: Vec<u8>,
+    eight_data: D,
 }
 
-impl VerticalEightPxUintEight {
-    pub fn new(width: usize, height: usize) -> Self {
+impl<D: EightData> VerticalEightPxUintEight<D> {
+    pub fn new(width: usize, height: usize, eight_data: D) -> EightPxUintEightResult<Self> {
         let eight_length = compute_eight_length(height);
 
-        Self {
-            width,
-            height,
-            eight_length,
-            eight_data: vec![0; width * eight_length],
-        }
-    }
+        println!("{} {}", width * eight_length, eight_data.len());
 
-    pub fn with_data(
-        width: usize,
-        height: usize,
-        src: &[impl ActAsMono],
-    ) -> EightPxUintEightResult<Self> {
-        if width * height != src.len() {
+        if width * eight_length != eight_data.len() {
             return Err(EightPxUintEightError::InvalidLengthData);
         }
 
-        let mut o = Self::new(width, height);
-        o.update((0, 0, width, height), src).unwrap();
-        Ok(o)
+        Ok(Self {
+            width,
+            height,
+            eight_length,
+            eight_data,
+        })
     }
 
     pub fn with_eight_data(
         width: usize,
         eight_height: usize,
-        eight_data: Vec<u8>,
+        eight_data: D,
     ) -> EightPxUintEightResult<Self> {
         if width * eight_height != eight_data.len() {
             return Err(EightPxUintEightError::InvalidLengthData);
@@ -73,7 +65,7 @@ impl VerticalEightPxUintEight {
                 let data_y = y + step_y;
                 let data_i = self.width * (data_y >> 3) + data_x;
 
-                draw_inverse(&mut self.eight_data, data_i, data_y, color);
+                draw_inverse(&mut self.eight_data.core_mut(), data_i, data_y, color);
             }
         }
 
@@ -81,7 +73,7 @@ impl VerticalEightPxUintEight {
     }
 
     pub fn as_vec(&self) -> &[u8] {
-        &self.eight_data
+        &self.eight_data.as_vev()
     }
 
     /// Return rectangle as 1 cell has 8 pixels.
@@ -93,7 +85,7 @@ impl VerticalEightPxUintEight {
             return (Rectangle::new(0, 0, 0, 0), vec![]);
         }
 
-        let src = &self.eight_data;
+        let src = &self.eight_data.core();
         let src_width = self.width;
         let src_height = self.eight_length;
 
@@ -128,15 +120,18 @@ impl VerticalEightPxUintEight {
 mod test {
     use crate::*;
 
+
     #[test]
-    fn test() {
-        let data = vec![
+    fn test_vertical() {
+        let data = EightDataClient::new(8);
+        let image_src = vec![
             1, 0, 1, 0, 0, 0, 1, 0,
             1, 0, 0, 0, 1, 0, 0, 1,
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(8, 3, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 3, data).unwrap();
+        image.update((0, 0, 8, 3), &image_src);
 
         assert_eq!(
             [
@@ -156,26 +151,23 @@ mod test {
     #[test]
     #[rustfmt::skip]
     fn test_invalid_meta() {
-        let data = vec![
-            1, 1, 0, 0, 0, 0, 1, 0,
-            1, 0, 0, 0, 1, 0, 0, 1,
-            0, 0, 0, 0, 0, 0, 0, 0,
-        ];
-
-        let image = VerticalEightPxUintEight::with_data(8, 2, &data);
+        let data = EightDataClient::new(9);
+        let mut image = VerticalEightPxUintEight::new(8, 2, data);
 
         assert!(image.is_err());
     }
 
     #[test]
     fn test_short() {
-        let data = vec![
+        let data = EightDataClient::new(5);
+        let image_src = vec![
             1, 1, 0, 0, 0,
             1, 0, 0, 0, 1,
             0, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(5, 3, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(5, 3, data).unwrap();
+        image.update((0, 0, 5, 3), &image_src);
 
         assert_eq!(
             [
@@ -191,7 +183,8 @@ mod test {
 
     #[test]
     fn test_long() {
-        let data = vec![
+        let data = EightDataClient::new(16);
+        let image_src = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -205,7 +198,8 @@ mod test {
             0, 0, 0, 1, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(8, 10, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 10, data).unwrap();
+        image.update((0, 0, 8, 10), &image_src);
 
         assert_eq!(
             [
@@ -233,7 +227,8 @@ mod test {
 
     #[test]
     fn test_update() {
-        let data = vec![
+        let data = EightDataClient::new(16);
+        let image_src = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -247,7 +242,8 @@ mod test {
             0, 0, 0, 1, 0, 0, 0, 0,
         ];
 
-        let mut image = VerticalEightPxUintEight::with_data(8, 10, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 10, data).unwrap();
+        image.update((0, 0, 8, 10), &image_src);
 
         image
             .update(
@@ -331,7 +327,7 @@ mod test {
     #[test]
     fn test_update_overflow() {
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image
                 .update(
@@ -355,7 +351,7 @@ mod test {
             );
         }
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image.update((5, 0, 1, 1), &vec![1]).unwrap();
 
@@ -370,7 +366,7 @@ mod test {
             );
         }
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image.update((0, 9, 1, 1), &vec![1]).unwrap();
 
