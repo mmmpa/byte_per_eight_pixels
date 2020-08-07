@@ -1,6 +1,9 @@
 use crate::*;
 use std::cmp::min;
 
+pub struct Horizontal;
+pub struct Vertical;
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct EightPxUintEight<D: EightData> {
     width: usize,
@@ -25,6 +28,40 @@ impl<D: EightData> EightPxUintEight<D> {
         })
     }
 
+    pub fn draw(&mut self, data_x: usize, data_y: usize, color: Mono) {
+        let mut data = self.eight_data.core_mut();
+        let data_i = self.eight_length * data_y + (data_x >> 3);
+
+        match color {
+            Mono::One => {
+                data[data_i] |= match data_x % 8 {
+                    0 => 0b_1000_0000,
+                    1 => 0b_0100_0000,
+                    2 => 0b_0010_0000,
+                    3 => 0b_0001_0000,
+                    4 => 0b_0000_1000,
+                    5 => 0b_0000_0100,
+                    6 => 0b_0000_0010,
+                    7 => 0b_0000_0001,
+                    _ => 0,
+                }
+            }
+            Mono::Zero => {
+                data[data_i] &= match data_x % 8 {
+                    0 => 0b_0111_1111,
+                    1 => 0b_1011_1111,
+                    2 => 0b_1101_1111,
+                    3 => 0b_1110_1111,
+                    4 => 0b_1111_0111,
+                    5 => 0b_1111_1011,
+                    6 => 0b_1111_1101,
+                    7 => 0b_1111_1110,
+                    _ => 0,
+                }
+            }
+        }
+    }
+
     pub fn update(
         &mut self,
         xywh: impl ActAsXywh,
@@ -37,17 +74,14 @@ impl<D: EightData> EightPxUintEight<D> {
             return Ok(());
         }
 
-        let data_width = self.eight_length;
-
         // discard pixels that overflow
         for step_y in 0..min(height, self.height - y) {
             for step_x in 0..min(width, self.width - x) {
                 let color = src[width * step_y + step_x].act_as();
                 let data_x = x + step_x;
                 let data_y = y + step_y;
-                let data_i = data_width * data_y + (data_x >> 3);
 
-                draw(&mut self.eight_data.core_mut(), data_i, data_x, color);
+                self.draw(data_x, data_y, color);
             }
         }
 
@@ -56,6 +90,31 @@ impl<D: EightData> EightPxUintEight<D> {
 
     pub fn as_vec(&self) -> &[u8] {
         &self.eight_data.as_vev()
+    }
+
+    fn compute_part(&self, xywh: impl ActAsXywh) -> (usize, usize, usize, usize, usize, usize) {
+        let (x, y, width, height) = xywh.xywh();
+
+        let src_width = self.eight_length;
+        let src_height = self.height;
+
+        let AsEight {
+            start: src_x,
+            length: result_width,
+        } = into_as_eight(x, width);
+
+        let src_y = y;
+        let result_height = min(height, src_height - y);
+        let result_width = min(result_width, src_width - src_x);
+
+        (
+            src_x,
+            src_y,
+            src_width,
+            src_height,
+            result_width,
+            result_height,
+        )
     }
 
     /// Return rectangle as 1 cell has 8 pixels.
@@ -76,19 +135,20 @@ impl<D: EightData> EightPxUintEight<D> {
             length: result_width,
         } = into_as_eight(x, width);
 
+        let src_y = y;
         let result_height = min(height, src_height - y);
         let result_width = min(result_width, src_width - src_x);
 
         for step_y in 0..result_height {
             for step_x in 0..result_width {
-                let real_i = src_width * (y + step_y) + src_x + step_x;
+                let real_i = src_width * (src_y + step_y) + src_x + step_x;
                 let result_i = result_width * step_y + step_x;
 
                 result[result_i] = src[real_i];
             }
         }
 
-        Rectangle::new(src_x, y, result_width, result_height)
+        Rectangle::new(src_x, src_y, result_width, result_height)
     }
 }
 

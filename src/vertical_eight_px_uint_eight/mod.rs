@@ -25,6 +25,40 @@ impl<D: EightData> VerticalEightPxUintEight<D> {
         })
     }
 
+    pub fn draw(&mut self, data_x: usize, data_y: usize, color: Mono) {
+        let mut data = self.eight_data.core_mut();
+        let data_i = self.width * (data_y >> 3) + data_x;
+
+        match color {
+            Mono::One => {
+                data[data_i] |= match data_y % 8 {
+                    0 => 0b_0000_0001,
+                    1 => 0b_0000_0010,
+                    2 => 0b_0000_0100,
+                    3 => 0b_0000_1000,
+                    4 => 0b_0001_0000,
+                    5 => 0b_0010_0000,
+                    6 => 0b_0100_0000,
+                    7 => 0b_1000_0000,
+                    _ => 0,
+                }
+            }
+            Mono::Zero => {
+                data[data_i] &= match data_y % 8 {
+                    0 => 0b_1111_1110,
+                    1 => 0b_1111_1101,
+                    2 => 0b_1111_1011,
+                    3 => 0b_1111_0111,
+                    4 => 0b_1110_1111,
+                    5 => 0b_1101_1111,
+                    6 => 0b_1011_1111,
+                    7 => 0b_0111_1111,
+                    _ => 0,
+                }
+            }
+        }
+    }
+
     pub fn update(
         &mut self,
         xywh: impl ActAsXywh,
@@ -43,9 +77,8 @@ impl<D: EightData> VerticalEightPxUintEight<D> {
                 let color = src[width * step_y + step_x].act_as();
                 let data_x = x + step_x;
                 let data_y = y + step_y;
-                let data_i = self.width * (data_y >> 3) + data_x;
 
-                draw_inverse(&mut self.eight_data.core_mut(), data_i, data_y, color);
+                self.draw(data_x, data_y, color);
             }
         }
 
@@ -74,19 +107,20 @@ impl<D: EightData> VerticalEightPxUintEight<D> {
             length: result_height,
         } = into_as_eight(y, height);
 
+        let src_x = x;
         let result_height = min(result_height, src_height - src_y);
         let result_width = min(width, src_width - x);
 
         for step_y in 0..result_height {
             for step_x in 0..result_width {
-                let real_i = src_width * (src_y + step_y) + x + step_x;
+                let real_i = src_width * (src_y + step_y) + src_x + step_x;
                 let result_i = result_width * step_y + step_x;
 
                 result[result_i] = src[real_i];
             }
         }
 
-        Rectangle::new(x, src_y, result_width, result_height)
+        Rectangle::new(src_x, src_y, result_width, result_height)
     }
 }
 
