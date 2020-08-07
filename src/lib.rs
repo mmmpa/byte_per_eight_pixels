@@ -8,7 +8,7 @@ mod horizontal_eight_px_uint_eight;
 mod vertical_eight_px_uint_eight;
 
 #[cfg(feature = "std")]
-mod unix;
+pub mod unix;
 
 pub use crate::eight_px_uint_eight::*;
 pub use common::*;
