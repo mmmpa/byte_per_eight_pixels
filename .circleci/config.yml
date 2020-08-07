@@ -1,0 +1,23 @@
+---
+version: 2
+jobs:
+  build:
+    parallelism: 1
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - rust-{{ checksum "Cargo.lock" }}
+            - rust-
+
+      - run:
+          name: test
+          command: cargo test --features="std"
+
+      - save_cache:
+          key: rust-{{ checksum "Cargo.lock" }}
+          paths:
+            - "~/.cargo"

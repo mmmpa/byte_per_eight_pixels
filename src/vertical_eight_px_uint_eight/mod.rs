@@ -1,99 +1,91 @@
 use crate::*;
-use std::cmp::min;
+use core::cmp::min;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct VerticalEightPxUintEight {
+pub struct VerticalEightPxUintEight<D: EightData> {
     width: usize,
     height: usize,
     eight_length: usize,
-    eight_data: Vec<u8>,
+    eight_data: D,
 }
 
-impl VerticalEightPxUintEight {
-    pub fn new(width: usize, height: usize) -> Self {
+impl<D: EightData> VerticalEightPxUintEight<D> {
+    pub fn new(width: usize, height: usize, eight_data: D) -> EightPxUintEightResult<Self> {
         let eight_length = compute_eight_length(height);
 
-        Self {
+        if width * eight_length != eight_data.len() {
+            return Err(EightPxUintEightError::InvalidLengthData);
+        }
+
+        Ok(Self {
             width,
             height,
             eight_length,
-            eight_data: vec![0; width * eight_length],
-        }
-    }
-
-    pub fn with_data(
-        width: usize,
-        height: usize,
-        src: &[impl ActAsMono],
-    ) -> EightPxUintEightResult<Self> {
-        if width * height != src.len() {
-            return Err(EightPxUintEightError::InvalidLengthData);
-        }
-
-        let mut o = Self::new(width, height);
-        o.update((0, 0, width, height), src).unwrap();
-        Ok(o)
-    }
-
-    pub fn with_eight_data(
-        width: usize,
-        eight_height: usize,
-        eight_data: Vec<u8>,
-    ) -> EightPxUintEightResult<Self> {
-        if width * eight_height != eight_data.len() {
-            return Err(EightPxUintEightError::InvalidLengthData);
-        }
-
-        let o = Self {
-            width,
-            height: eight_height * 8,
-            eight_length: eight_height,
             eight_data,
-        };
-        Ok(o)
+        })
+    }
+}
+
+impl<D: EightData> EightPxUintEight for VerticalEightPxUintEight<D> {
+    type EightData = D;
+
+    fn width(&self) -> usize {
+        self.width
     }
 
-    pub fn update(
-        &mut self,
-        xywh: impl ActAsXywh,
-        src: &[impl ActAsMono],
-    ) -> EightPxUintEightResult<()> {
-        let (x, y, width, height) = xywh.xywh();
-
-        // avoid unsigned subtract overflow
-        if x > self.width || y > self.height {
-            return Ok(());
-        }
-
-        // discard pixels that overflow
-        for step_y in 0..min(height, self.height - y) {
-            for step_x in 0..min(width, self.width - x) {
-                let color = src[width * step_y + step_x].act_as();
-                let data_x = x + step_x;
-                let data_y = y + step_y;
-                let data_i = self.width * (data_y >> 3) + data_x;
-
-                draw_inverse(&mut self.eight_data, data_i, data_y, color);
-            }
-        }
-
-        Ok(())
+    fn height(&self) -> usize {
+        self.height
     }
 
-    pub fn as_vec(&self) -> &[u8] {
+    fn eight_length(&self) -> usize {
+        self.eight_length
+    }
+
+    fn eight_data(&self) -> &Self::EightData {
         &self.eight_data
     }
 
-    /// Return rectangle as 1 cell has 8 pixels.
-    pub fn part_vec(&self, xywh: impl ActAsXywh) -> (Rectangle, Vec<u8>) {
+    fn eight_data_mut(&mut self) -> &mut Self::EightData {
+        &mut self.eight_data
+    }
+
+    fn draw(&mut self, x: usize, y: usize, color: Mono) {
+        let data = self.eight_data.core_mut();
+        let data_i = self.width * (y >> 3) + x;
+
+        match color {
+            Mono::One => {
+                data[data_i] |= match y % 8 {
+                    0 => 0b_0000_0001,
+                    1 => 0b_0000_0010,
+                    2 => 0b_0000_0100,
+                    3 => 0b_0000_1000,
+                    4 => 0b_0001_0000,
+                    5 => 0b_0010_0000,
+                    6 => 0b_0100_0000,
+                    7 => 0b_1000_0000,
+                    _ => 0,
+                }
+            }
+            Mono::Zero => {
+                data[data_i] &= match y % 8 {
+                    0 => 0b_1111_1110,
+                    1 => 0b_1111_1101,
+                    2 => 0b_1111_1011,
+                    3 => 0b_1111_0111,
+                    4 => 0b_1110_1111,
+                    5 => 0b_1101_1111,
+                    6 => 0b_1011_1111,
+                    7 => 0b_0111_1111,
+                    _ => 0,
+                }
+            }
+        }
+    }
+
+    fn compute_part(&self, xywh: impl ActAsXywh) -> Part {
         let (x, y, width, height) = xywh.xywh();
 
-        // avoid unsigned subtract overflow
-        if x > self.width || y > self.height {
-            return (Rectangle::new(0, 0, 0, 0), vec![]);
-        }
-
-        let src = &self.eight_data;
         let src_width = self.width;
         let src_height = self.eight_length;
 
@@ -102,41 +94,39 @@ impl VerticalEightPxUintEight {
             length: result_height,
         } = into_as_eight(y, height);
 
-        let mut result = vec![0u8; width * result_height];
-
+        let src_x = x;
         let result_height = min(result_height, src_height - src_y);
         let result_width = min(width, src_width - x);
 
-        for step_y in 0..result_height {
-            for step_x in 0..result_width {
-                let real_i = src_width * (src_y + step_y) + x + step_x;
-                let result_i = result_width * step_y + step_x;
-
-                result[result_i] = src[real_i];
-            }
-        }
-
-        (
-            Rectangle::new(x, src_y, result_width, result_height),
-            result,
+        Part::new(
+            src_x,
+            src_y,
+            src_width,
+            src_height,
+            result_width,
+            result_height,
         )
     }
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 #[rustfmt::skip]
 mod test {
     use crate::*;
+    use crate::unix::EightDataClient;
 
     #[test]
-    fn test() {
-        let data = vec![
+    fn test_vertical() {
+        let data = EightDataClient::new(8);
+        let image_src = vec![
             1, 0, 1, 0, 0, 0, 1, 0,
             1, 0, 0, 0, 1, 0, 0, 1,
             0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(8, 3, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 3, data).unwrap();
+        image.update((0, 0, 8, 3), &image_src).unwrap();
 
         assert_eq!(
             [
@@ -156,26 +146,23 @@ mod test {
     #[test]
     #[rustfmt::skip]
     fn test_invalid_meta() {
-        let data = vec![
-            1, 1, 0, 0, 0, 0, 1, 0,
-            1, 0, 0, 0, 1, 0, 0, 1,
-            0, 0, 0, 0, 0, 0, 0, 0,
-        ];
-
-        let image = VerticalEightPxUintEight::with_data(8, 2, &data);
+        let data = EightDataClient::new(9);
+        let image = VerticalEightPxUintEight::new(8, 2, data);
 
         assert!(image.is_err());
     }
 
     #[test]
     fn test_short() {
-        let data = vec![
+        let data = EightDataClient::new(5);
+        let image_src = vec![
             1, 1, 0, 0, 0,
             1, 0, 0, 0, 1,
             0, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(5, 3, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(5, 3, data).unwrap();
+        image.update((0, 0, 5, 3), &image_src).unwrap();
 
         assert_eq!(
             [
@@ -191,7 +178,8 @@ mod test {
 
     #[test]
     fn test_long() {
-        let data = vec![
+        let data = EightDataClient::new(16);
+        let image_src = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -205,7 +193,8 @@ mod test {
             0, 0, 0, 1, 0, 0, 0, 0,
         ];
 
-        let image = VerticalEightPxUintEight::with_data(8, 10, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 10, data).unwrap();
+        image.update((0, 0, 8, 10), &image_src).unwrap();
 
         assert_eq!(
             [
@@ -233,7 +222,8 @@ mod test {
 
     #[test]
     fn test_update() {
-        let data = vec![
+        let data = EightDataClient::new(16);
+        let image_src = vec![
             1, 1, 0, 0, 0, 0, 1, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -247,7 +237,8 @@ mod test {
             0, 0, 0, 1, 0, 0, 0, 0,
         ];
 
-        let mut image = VerticalEightPxUintEight::with_data(8, 10, &data).unwrap();
+        let mut image = VerticalEightPxUintEight::new(8, 10, data).unwrap();
+        image.update((0, 0, 8, 10), &image_src).unwrap();
 
         image
             .update(
@@ -286,7 +277,9 @@ mod test {
             image.as_vec()
         );
 
-        let (n, re) = image.part_vec((2, 7, 2, 3));
+        let mut re = [0;4];
+
+        let n = image.part_vec((2, 7, 2, 3), &mut re);
         assert_eq!(
             vec![
                 0b_1000_0000,
@@ -299,39 +292,37 @@ mod test {
         );
         assert_eq!((2, 0, 2, 2), n.xywh());
 
-        let (n, re) = image.part_vec((0, 0, 1, 3));
-        assert_eq!(vec![0b_0000_0001,], re);
+        let n = image.part_vec((0, 0, 1, 3), &mut re);
+        assert_eq!([0b_0000_0001,], re[0..1]);
         assert_eq!((0, 0, 1, 1), n.xywh());
 
-        let (n, re) = image.part_vec((2, 1, 1, 3));
-        assert_eq!(vec![0b_1000_0000,], re);
+        let n = image.part_vec((2, 1, 1, 3), &mut re);
+        assert_eq!([0b_1000_0000,], re[0..1]);
         assert_eq!((2, 0, 1, 1), n.xywh());
 
-        let (n, re) = image.part_vec((2, 7, 1, 1));
-        assert_eq!(vec![0b_1000_0000,], re);
+        let n = image.part_vec((2, 7, 1, 1), &mut re);
+        assert_eq!([0b_1000_0000,], re[0..1]);
         assert_eq!((2, 0, 1, 1), n.xywh());
 
-        let (n, re) = image.part_vec((2, 8, 1, 1));
-        assert_eq!(vec![0b_0000_0010,], re);
+        let n = image.part_vec((2, 8, 1, 1), &mut re);
+        assert_eq!([0b_0000_0010,], re[0..1]);
         assert_eq!((2, 1, 1, 1), n.xywh());
 
-        let (n, re) = image.part_vec((2, 7, 1, 2));
-        assert_eq!(vec![0b_1000_0000, 0b_0000_0010], re);
+        let n = image.part_vec((2, 7, 1, 2), &mut re);
+        assert_eq!([0b_1000_0000, 0b_0000_0010], re[0..2]);
         assert_eq!((2, 0, 1, 2), n.xywh());
 
-        let (n, re) = image.part_vec((0, 13, 1, 2));
-        assert_eq!(0, re.len());
+        let n = image.part_vec((0, 13, 1, 2), &mut re);
         assert_eq!((0, 0, 0, 0), n.xywh());
 
-        let (n, re) = image.part_vec((0, 13, 2, 1));
-        assert_eq!(0, re.len());
+        let n = image.part_vec((0, 13, 2, 1), &mut re);
         assert_eq!((0, 0, 0, 0), n.xywh());
     }
 
     #[test]
     fn test_update_overflow() {
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image
                 .update(
@@ -355,7 +346,7 @@ mod test {
             );
         }
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image.update((5, 0, 1, 1), &vec![1]).unwrap();
 
@@ -370,7 +361,7 @@ mod test {
             );
         }
         {
-            let mut image = VerticalEightPxUintEight::new(4, 8);
+            let mut image = VerticalEightPxUintEight::new(4, 8, EightDataClient::new(4)).unwrap();
 
             image.update((0, 9, 1, 1), &vec![1]).unwrap();
 
