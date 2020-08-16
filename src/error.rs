@@ -1,6 +1,7 @@
 #[derive(Debug, Eq, PartialEq)]
 pub enum EightPxUintEightError {
     InvalidLengthData,
+    Overflow((usize,usize)),
 }
 
 #[cfg(feature = "std")]

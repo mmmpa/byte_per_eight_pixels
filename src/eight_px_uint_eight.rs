@@ -28,7 +28,11 @@ pub trait EightPxUintEight {
         // discard pixels that overflow
         for step_y in 0..min(height, self.height() - y) {
             for step_x in 0..min(width, self.width() - x) {
-                let color = src[width * step_y + step_x].act_as();
+                let index = width * step_y + step_x;
+                let color = match src.get(width * step_y + step_x) {
+                    None => return Err(EightPxUintEightError::Overflow((src.len(), index))),
+                    Some(n) => n,
+                }.act_as();
                 let data_x = x + step_x;
                 let data_y = y + step_y;
 
